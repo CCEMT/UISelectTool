@@ -178,6 +178,8 @@ namespace UIInspectorTool
                     RefreshSearch();
                 }
 
+                if (GUILayout.Button("刷新", GUILayout.Width(50))) { GeneratePreview(editorUI); }
+
             }
             GUILayout.EndHorizontal();
 
