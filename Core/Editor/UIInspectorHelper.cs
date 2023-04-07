@@ -8,8 +8,11 @@ using Object = UnityEngine.Object;
 
 namespace UIInspectorTool
 {
-    public static class Common
+    public static class UIInspectorHelper
     {
+        public readonly static Color BackgroundColor = new Color(0.8f, 0.8f, 0.8f, 1f);
+        public readonly static Vector2 Size = new Vector2(128, 128);
+
         public static Type[] GetAllDerivedTypes(this AppDomain targetAppDomain, Type targetType)
         {
             List<Type> result = new List<Type>();
@@ -77,7 +80,7 @@ namespace UIInspectorTool
             GameObject cameraObject = new GameObject("RenderCamera");
 
             Camera renderCamera = cameraObject.AddComponent<Camera>();
-            renderCamera.backgroundColor = new Color(0.8f, 0.8f, 0.8f, 1f);
+            renderCamera.backgroundColor = BackgroundColor;
             renderCamera.clearFlags = CameraClearFlags.Color;
             renderCamera.cameraType = CameraType.Preview;
             renderCamera.cullingMask = 1 << 21;
@@ -87,11 +90,10 @@ namespace UIInspectorTool
             for (int i = 0; i < amount; i++)
             {
                 GameObject obj = objs[i];
-                GameObject clone = Object.Instantiate(obj);
+                GameObject clone = Object.Instantiate(obj, canvasObject.transform);
                 Transform cloneTransform = clone.transform;
 
                 //如果是UGUI节点的话就要把它们放在Canvas下了
-                cloneTransform.SetParent(canvasObject.transform);
                 cloneTransform.localPosition = Vector3.zero;
 
                 canvasObject.transform.position = new Vector3(-1000, -1000, -1000);
@@ -114,7 +116,7 @@ namespace UIInspectorTool
                 float max_camera_size = width > height ? width : height;
                 renderCamera.orthographicSize = max_camera_size / 2; //预览图要尽量少点空白
 
-                RenderTexture texture = new RenderTexture(128, 128, 0, RenderTextureFormat.Default);
+                RenderTexture texture = new RenderTexture((int) Size.x, (int) Size.y, 0, RenderTextureFormat.Default);
                 renderCamera.targetTexture = texture;
 
                 Undo.DestroyObjectImmediate(cameraObject);
@@ -155,6 +157,47 @@ namespace UIInspectorTool
             Vector3 center = (Min + Max) / 2;
             Vector3 size = new Vector3(Max.x - Min.x, Max.y - Min.y, Max.z - Min.z);
             return new Bounds(center, size);
+        }
+
+        public static bool IsNull(Texture texture)
+        {
+            Texture2D texture2D = ToTexture2D(texture);
+            if (texture2D == null) { return false; }
+            int hight = texture.height;
+            int width = texture.width;
+            for (int i = 0; i < hight; i++)
+            {
+                for (int j = 0; j < width; j++)
+                {
+                    Color currentColor = texture2D.GetPixel(i, j);
+                    if (currentColor != BackgroundColor) { return false; }
+                }
+            }
+
+            return true;
+        }
+
+        public static Texture2D ToTexture2D(Texture rTex)
+        {
+            Texture2D tex = new Texture2D((int) Size.x, (int) Size.y, TextureFormat.RGB24, false);
+            RenderTexture.active = (RenderTexture) rTex;
+            tex.ReadPixels(new Rect(0, 0, rTex.width, rTex.height), 0, 0);
+            tex.Apply();
+            return tex;
+        }
+
+        public static List<int> GetIndex(GameObject current, GameObject root)
+        {
+            List<int> indexList = new List<int>();
+            GetIndex(indexList, current, root).Reverse();
+            return indexList;
+        }
+
+        private static List<int> GetIndex(List<int> index, GameObject current, GameObject target)
+        {
+            if (current == target) { return index; }
+            index.Add(current.transform.GetSiblingIndex());
+            return GetIndex(index, current.transform.parent.gameObject, target);
         }
 
         public static bool Search(string check, string input)
